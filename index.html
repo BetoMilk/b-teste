@@ -155,6 +155,21 @@
             transition: width 0.5s ease;
         }
 
+        /* Terminal de Log Oculto para Engenharia Reversa */
+        .log-terminal {
+            background-color: #1e293b;
+            color: #38bdf8;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: left;
+            max-height: 100px;
+            overflow-y: auto;
+            word-break: break-all;
+        }
+
         /* Balões de Notificação */
         .balao {
             position: fixed;
@@ -197,6 +212,8 @@
                     <div class="card-titulo">Frequência Cardíaca</div>
                     <div class="card-valor"><span id="txtBPM">Iniciar</span> <span class="card-unidade" id="unidadeBPM"></span></div>
                     <div style="font-size: 11px; margin-top: 5px; color: #64748b;" id="statusCardio">Toque para ler batimentos</div>
+                    
+                    <div id="terminalDebug" class="log-terminal oculto">Mapeando canais...</div>
                 </div>
 
                 <div class="card card-bateria">
@@ -246,6 +263,7 @@
         const txtBPM = document.getElementById('txtBPM');
         const unidadeBPM = document.getElementById('unidadeBPM');
         const statusCardio = document.getElementById('statusCardio');
+        const terminalDebug = document.getElementById('terminalDebug');
         const txtBateria = document.getElementById('txtBateria');
         const barraBateria = document.getElementById('barraBateria');
 
@@ -257,13 +275,14 @@
             setTimeout(() => { elemento.classList.remove('mostrar'); }, 4000);
         }
 
-        // 1. Procurar Relógio - Solicitamos apenas a bateria como serviço opcional garantido
+        // 1. Procurar Relógio aceitando conexões gerais
         btnBuscar.addEventListener('click', async () => {
             try {
                 dashboard.classList.add('oculto');
+                terminalDebug.classList.add('oculto');
                 dispositivoEscolhido = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
-                    optionalServices: ['battery_service'] // Removemos o 'heart_rate' daqui para não travar a busca
+                    optionalServices: ['battery_service'] 
                 });
 
                 if (dispositivoEscolhido) {
@@ -271,12 +290,12 @@
                     areaConexao.classList.remove('oculto');
                 }
             } catch (error) {
-                console.error("Erro na busca:", error);
+                console.error(error);
                 exibirBalao(balaoErro);
             }
         });
 
-        // 2. Conectar e carregar dados da bateria
+        // 2. Conectar e carregar bateria
         btnConectar.addEventListener('click', async () => {
             if (!dispositivoEscolhido) return;
 
@@ -292,7 +311,7 @@
                     unidadeBPM.textContent = "";
                     statusCardio.innerHTML = "Toque para ler batimentos";
 
-                    // Lê a bateria
+                    // Carrega Nível de Bateria
                     const servicoBateria = await servidorGatt.getPrimaryService('battery_service');
                     const caracteristicaBateria = await servicoBateria.getCharacteristic('battery_level');
                     const valorBateria = await caracteristicaBateria.readValue();
@@ -306,12 +325,12 @@
                     });
                 }
             } catch (error) {
-                console.error("Erro ao conectar:", error);
+                console.error(error);
                 exibirBalao(balaoErro);
             }
         });
 
-        // 3. Tentar ler os Batimentos Cardíacos ao clicar no card
+        // 3. Clique no Card: Tenta ler o padrão. Se falhar, faz o mapeamento reverso
         cardFrequencia.addEventListener('click', async () => {
             if (!servidorGatt || !servidorGatt.connected) return;
 
@@ -319,8 +338,9 @@
                 statusCardio.innerHTML = "<span class='pulso'>❤️</span> Lendo sensor...";
                 txtBPM.textContent = "--";
                 unidadeBPM.textContent = "";
+                terminalDebug.classList.add('oculto');
 
-                // Tentativa direta de capturar o serviço padrão de mercado
+                // Tentativa padrão internacional
                 const servicoCardio = await servidorGatt.getPrimaryService('heart_rate');
                 const caracteristicaCardio = await servicoCardio.getCharacteristic('heart_rate_measurement');
                 
@@ -328,14 +348,7 @@
                 
                 caracteristicaCardio.addEventListener('characteristicvaluechanged', (event) => {
                     const valorBytes = event.target.value;
-                    let bpm;
-                    let flags = valorBytes.getUint8(0);
-                    if ((flags & 0x01) === 0) {
-                        bpm = valorBytes.getUint8(1);
-                    } else {
-                        bpm = valorBytes.getUint16(1, true);
-                    }
-
+                    let bpm = valorBytes.getUint8(1);
                     if (bpm > 0) {
                         txtBPM.textContent = bpm;
                         unidadeBPM.textContent = " BPM";
@@ -344,11 +357,33 @@
                 });
 
             } catch (error) {
-                console.log("Serviço padrão não suportado ou bloqueado:", error);
-                // Feedback elegante caso a Haiz use protocolo privado escondido
-                statusCardio.innerHTML = "⚠️ Canal privado (Bloqueado)";
-                txtBPM.textContent = "🔒";
-                unidadeBPM.textContent = "";
+                console.log("Serviço padrão indisponível. Iniciando varredura reversa...");
+                statusCardio.innerHTML = "⚠️ Mapeando canais privados...";
+                txtBPM.textContent = "🔍";
+                
+                try {
+                    // ENGENHARIA REVERSA: Pede ao relógio todos os serviços primários reais dele
+                    const servicosDescobertos = await servidorGatt.getPrimaryServices();
+                    let listaUUIDs = [];
+                    
+                    for (let s of servicosDescobertos) {
+                        // Filtra o serviço de bateria que já conhecemos para limpar o log
+                        if (!s.uuid.includes('180f')) {
+                            // Pega os 8 caracteres principais do ID único do canal
+                            listaUUIDs.push(s.uuid.substring(0, 8).toUpperCase());
+                        }
+                    }
+
+                    // Apresenta o resultado das chaves encontradas no painel preto
+                    terminalDebug.innerHTML = "⚡ Chaves Privadas Haiz:<br>" + listaUUIDs.join("<br>");
+                    terminalDebug.classList.remove('oculto');
+                    statusCardio.innerHTML = "💡 Canais mapeados com sucesso!";
+
+                } catch (errErro) {
+                    terminalDebug.innerHTML = "Erro ao interceptar barramento: " + errErro.message;
+                    terminalDebug.classList.remove('oculto');
+                    statusCardio.innerHTML = "❌ Bloqueio total de barramento";
+                }
             }
         });
 
