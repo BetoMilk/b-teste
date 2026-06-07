@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conexão Bluetooth</title>
+    <style>
+        /* Tela azul claro */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e0f2fe; /* Azul claro */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #0369a1;
+            margin-bottom: 20px;
+        }
+
+        /* Botões estilizados */
+        button {
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #0369a1;
+        }
+
+        #btnConectar {
+            background-color: #16a34a;
+            margin-top: 15px;
+        }
+
+        #btnConectar:hover {
+            background-color: #15803d;
+        }
+
+        /* Área do dispositivo encontrado */
+        #resultadoBusca {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px dashed #bae6fd;
+            border-radius: 8px;
+            background-color: #f0f9ff;
+        }
+
+        /* Balões de Notificação (Toast) */
+        .balao {
+            position: fixed;
+            top: 20px;
+            right: -300px;
+            padding: 15px 30px;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: right 0.5s ease-in-out;
+            z-index: 1000;
+        }
+
+        .balao.sucesso {
+            background-color: #22c55e;
+        }
+
+        .balao.erro {
+            background-color: #ef4444;
+        }
+
+        .balao.mostrar {
+            right: 20px;
+        }
+
+        /* Classes utilitárias */
+        .oculto {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Conexão Bluetooth</h1>
+        <button id="btnBuscar">Buscar Dispositivos</button>
+
+        <div id="resultadoBusca" class="oculto">
+            <p><strong>Dispositivo selecionado:</strong> <span id="nomeDispositivo">Nenhum</span></p>
+            <button id="btnConectar">Conectar</button>
+        </div>
+    </div>
+
+    <div id="balaoSucesso" class="balao sucesso">Sucesso! Conectado com orgulho.</div>
+    <div id="balaoErro" class="balao erro">Erro! Falha na conexão.</div>
+
+    <script>
+        let dispositivoEscolhido = null;
+
+        const btnBuscar = document.getElementById('btnBuscar');
+        const btnConectar = document.getElementById('btnConectar');
+        const resultadoBusca = document.getElementById('resultadoBusca');
+        const nomeDispositivo = document.getElementById('nomeDispositivo');
+        
+        const balaoSucesso = document.getElementById('balaoSucesso');
+        const balaoErro = document.getElementById('balaoErro');
+
+        // Função para exibir os balões na tela temporariamente
+        function exibirBalao(elemento) {
+            elemento.classList.add('mostrar');
+            setTimeout(() => {
+                elemento.classList.remove('mostrar');
+            }, 4000); // Some após 4 segundos
+        }
+
+        // 1. Passo: Buscar Dispositivos
+        btnBuscar.addEventListener('click', async () => {
+            try {
+                // Filtro para aceitar qualquer dispositivo que transmita serviços (ou filtros específicos)
+                dispositivoEscolhido = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true
+                });
+
+                if (dispositivoEscolhido) {
+                    nomeDispositivo.textContent = dispositivoEscolhido.name || "Dispositivo sem nome";
+                    resultadoBusca.classList.remove('oculto');
+                }
+            } catch (error) {
+                console.log("Busca cancelada ou falhou: ", error);
+                // Se o usuário fechar a janela de busca sem escolher, podemos disparar o balão de erro
+                exibirBalao(balaoErro);
+            }
+        });
+
+        // 2. Passo: Conectar ao Dispositivo Selecionado
+        btnConectar.addEventListener('click', async () => {
+            if (!dispositivoEscolhido) return;
+
+            try {
+                // Tenta conectar ao servidor GATT do dispositivo
+                const servidor = await dispositivoEscolhido.gatt.connect();
+                
+                if (servidor.connected) {
+                    exibirBalao(balaoSucesso);
+                } else {
+                    exibirBalao(balaoErro);
+                }
+            } catch (error) {
+                console.error("Erro ao conectar: ", error);
+                exibirBalao(balaoErro);
+            }
+        });
+    </script>
+</body>
+</html>
