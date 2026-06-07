@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Dashboard Fitness</title>
+    <style>
+        /* Fundo Azul Claro Moderno */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f9ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e293b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(3, 105, 161, 0.08);
+            max-width: 450px;
+            width: 90%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #0369a1;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        /* Botões Principais */
+        button {
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-buscar { background-color: #0284c7; }
+        .btn-buscar:hover { background-color: #0369a1; }
+        .btn-conectar { background-color: #16a34a; }
+        .btn-conectar:hover { background-color: #15803d; }
+        .btn-desconectar { background-color: #94a3b8; font-size: 13px; padding: 8px; }
+
+        button:disabled { background-color: #cbd5e1 !important; cursor: not-allowed; }
+
+        /* Grid do Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        /* Cards do Dashboard */
+        .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-largo {
+            grid-column: span 2;
+        }
+
+        .card-titulo {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .card-valor {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .card-unidade {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: normal;
+        }
+
+        /* Cores Temáticas dos Cards */
+        .card-cardio { border-left: 4px solid #ef4444; }
+        .card-cardio .card-valor { color: #ef4444; }
+        
+        .card-bateria { border-left: 4px solid #22c55e; }
+
+        /* Animação do Coração batendo */
+        @keyframes pulsar {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .pulso {
+            display: inline-block;
+            animation: pulsar 0.8s infinite;
+            color: #ef4444;
+        }
+
+        /* Barra de Progresso Interna da Bateria */
+        .barra-progresso {
+            background: #e2e8f0;
+            height: 6px;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progresso-preenchimento {
+            height: 100%;
+            width: 0%;
+            background: #22c55e;
+            transition: width 0.5s ease;
+        }
+
+        /* Balões de Notificação */
+        .balao {
+            position: fixed;
+            top: 20px;
+            right: -300px;
+            padding: 12px 25px;
+            color: white;
+            font-weight: bold;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: right 0.4s ease-in-out;
+            z-index: 1000;
+        }
+        .balao.sucesso { background-color: #22c55e; }
+        .balao.erro { background-color: #ef4444; }
+        .balao.mostrar { right: 20px; }
+
+        .oculto { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Painel Fitness</h1>
+            <div class="subtitle">Seu treino, suas regras</div>
+        </header>
+
+        <button id="btnBuscar" class="btn-buscar">Procurar Relógio</button>
+        
+        <div id="areaConexao" class="oculto" style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 15px;">
+            <p style="margin: 0 0 10px 0; font-size: 14px;">Aparelho encontrado: <strong id="nomeDispositivo" style="color:#0284c7;">-</strong></p>
+            <button id="btnConectar" class="btn-conectar">Sincronizar Dashboard</button>
+        </div>
+
+        <div id="dashboard" class="oculto">
+            <div class="dashboard-grid">
+                
+                <div class="card card-cardio">
+                    <div class="card-titulo">Frequência Cardíaca</div>
+                    <div class="card-valor"><span id="txtBPM">--</span> <span class="card-unidade">BPM</span></div>
+                    <div style="font-size: 12px; margin-top: 5px;" id="statusCardio"><span class="pulso">❤️</span> Monitorando...</div>
+                </div>
+
+                <div class="card card-bateria">
+                    <div class="card-titulo">Energia do Relógio</div>
+                    <div class="card-valor"><span id="txtBateria">--</span><span class="card-unidade">%</span></div>
+                    <div class="barra-progresso">
+                        <div id="barraBateria" class="progresso-preenchimento"></div>
+                    </div>
+                </div>
+
+                <div class="card card-largo">
+                    <div class="card-titulo">Atividade Diária (Exercício)</div>
+                    <div style="display: flex; justify-content: space-around; margin-top: 10px;">
+                        <div>
+                            <div style="font-size: 20px; font-weight: bold; color: #0284c7;">4.250</div>
+                            <div style="font-size: 11px; color: #64748b;">Passos Dadas</div>
+                        </div>
+                        <div style="border-left: 1px solid #e2e8f0;"></div>
+                        <div>
+                            <div style="font-size: 20px; font-weight: bold; color: #f59e0b;">185</div>
+                            <div style="font-size: 11px; color: #64748b;">Kcal Queimadas</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <button id="btnDesconectar" class="btn-desconectar" style="margin-top: 20px;">Encerrar Sessão</button>
+        </div>
+    </div>
+
+    <div id="balaoSucesso" class="balaoSUcesso balao sucesso">Dashboard Sincronizado!</div>
+    <div id="balaoErro" class="balao erro">Erro na comunicação.</div>
+
+    <script>
+        let dispositivoEscolhido = null;
+
+        const btnBuscar = document.getElementById('btnBuscar');
+        const btnConectar = document.getElementById('btnConectar');
+        const btnDesconectar = document.getElementById('btnDesconectar');
+        const areaConexao = document.getElementById('areaConexao');
+        const dashboard = document.getElementById('dashboard');
+        const nomeDispositivo = document.getElementById('nomeDispositivo');
+        
+        const txtBPM = document.getElementById('txtBPM');
+        const statusCardio = document.getElementById('statusCardio');
+        const txtBateria = document.getElementById('txtBateria');
+        const barraBateria = document.getElementById('barraBateria');
+
+        const balaoSucesso = document.getElementById('balaoSucesso');
+        const balaoErro = document.getElementById('balaoErro');
+
+        function exibirBalao(elemento) {
+            elemento.classList.add('mostrar');
+            setTimeout(() => { elemento.classList.remove('mostrar'); }, 4000);
+        }
+
+        // 1. Buscar pedindo bateria e batimentos cardíacos normatizados
+        btnBuscar.addEventListener('click', async () => {
+            try {
+                dashboard.classList.add('oculto');
+                dispositivoEscolhido = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['battery_service', 'heart_rate'] 
+                });
+
+                if (dispositivoEscolhido) {
+                    nomeDispositivo.textContent = dispositivoEscolhido.name || "Smartwatch Haiz";
+                    areaConexao.classList.remove('oculto');
+                }
+            } catch (error) {
+                exibirBalao(balaoErro);
+            }
+        });
+
+        // 2. Conectar e alimentar o lindo Dashboard
+        btnConectar.addEventListener('click', async () => {
+            if (!dispositivoEscolhido) return;
+
+            try {
+                const servidor = await dispositivoEscolhido.gatt.connect();
+                
+                if (servidor.connected) {
+                    exibirBalao(balaoSucesso);
+                    areaConexao.classList.add('oculto');
+                    dashboard.classList.remove('oculto');
+
+                    // Lendo Bateria e jogando no layout novo
+                    const servicoBateria = await servidor.getPrimaryService('battery_service');
+                    const caracteristicaBateria = await servicoBateria.getCharacteristic('battery_level');
+                    const valorBateria = await caracteristicaBateria.readValue();
+                    const carga = valorBateria.getUint8(0);
+                    
+                    txtBateria.textContent = carga;
+                    barraBateria.style.width = `${carga}%`;
+
+                    // TENTANDO LER OS BATIMENTOS CARDÍACOS
+                    try {
+                        const servicoCardio = await servidor.getPrimaryService('heart_rate');
+                        const caracteristicaCardio = await servicoCardio.getCharacteristic('heart_rate_measurement');
+                        
+                        await caracteristicaCardio.startNotifications();
+                        caracteristicaCardio.addEventListener('characteristicvaluechanged', (event) => {
+                            const valorConstruido = event.target.value;
+                            // O primeiro byte define o formato, o segundo traz os batimentos reais
+                            const bpm = valorConstruido.getUint8(1); 
+                            txtBPM.textContent = bpm;
+                        });
+                    } catch (e) {
+                        console.log("Batimentos travados pelo fabricante.");
+                        statusCardio.innerHTML = "⚠️ Bloqueado pela fábrica";
+                        txtBPM.textContent = "🔒";
+                    }
+
+                    dispositivoEscolhido.addEventListener('gattserverdisconnected', () => {
+                        dashboard.classList.add('oculto');
+                    });
+                }
+            } catch (error) {
+                exibirBalao(balaoErro);
+            }
+        });
+
+        btnDesconectar.addEventListener('click', () => {
+            if (dispositivoEscolhido && dispositivoEscolhido.gatt.connected) {
+                dispositivoEscolhido.gatt.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>
