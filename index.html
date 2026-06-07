@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conexão Bluetooth Real</title>
+    <style>
+        /* Tela azul claro */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e0f2fe; /* Azul claro */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #0369a1;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        /* Botões estilizados */
+        button {
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0369a1;
+        }
+
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        #btnConectar {
+            background-color: #16a34a;
+            margin-top: 15px;
+        }
+
+        #btnConectar:hover {
+            background-color: #15803d;
+        }
+
+        /* Área de status e dados do dispositivo */
+        #resultadoBusca {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px dashed #bae6fd;
+            border-radius: 8px;
+            background-color: #f0f9ff;
+            text-align: left;
+        }
+
+        .info-dados {
+            background-color: #e0f2fe;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #0369a1;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* Balões de Notificação (Toast) */
+        .balao {
+            position: fixed;
+            top: 20px;
+            right: -300px;
+            padding: 15px 30px;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: right 0.5s ease-in-out;
+            z-index: 1000;
+        }
+
+        .balao.sucesso {
+            background-color: #22c55e;
+        }
+
+        .balao.erro {
+            background-color: #ef4444;
+        }
+
+        .balao.mostrar {
+            right: 20px;
+        }
+
+        /* Classes utilitárias */
+        .oculto {
+            display: none !important;
+        }
+
+        #avisoIncompativel {
+            color: #ef4444;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Conexão Bluetooth</h1>
+        
+        <div id="avisoIncompativel" class="oculto">⚠️ Seu navegador não suporta Web Bluetooth! Use o app Bluefy no iPhone.</div>
+
+        <button id="btnBuscar">Buscar Relógio</button>
+
+        <div id="resultadoBusca" class="oculto">
+            <p><strong>Dispositivo pareado:</strong> <span id="nomeDispositivo">Nenhum</span></p>
+            <button id="btnConectar">Conectar e Interrogar Relógio</button>
+            
+            <div id="dadosRelogio" class="info-dados oculto">
+                <strong>Status da Comunicação:</strong>
+                <p id="textoDados">Aguardando comando...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="balaoSucesso" class="balao sucesso">Sucesso! Conectado com orgulho.</div>
+    <div id="balaoErro" class="balao erro">Erro! Falha na conexão.</div>
+
+    <script>
+        let dispositivoEscolhido = null;
+
+        const btnBuscar = document.getElementById('btnBuscar');
+        const btnConectar = document.getElementById('btnConectar');
+        const resultadoBusca = document.getElementById('resultadoBusca');
+        const nomeDispositivo = document.getElementById('nomeDispositivo');
+        const avisoIncompativel = document.getElementById('avisoIncompativel');
+        const dadosRelogio = document.getElementById('dadosRelogio');
+        const textoDados = document.getElementById('textoDados');
+        
+        const balaoSucesso = document.getElementById('balaoSucesso');
+        const balaoErro = document.getElementById('balaoErro');
+
+        if (!navigator.bluetooth) {
+            avisoIncompativel.classList.remove('oculto');
+            btnBuscar.disabled = true;
+        }
+
+        function exibirBalao(elemento) {
+            elemento.classList.add('mostrar');
+            setTimeout(() => {
+                elemento.classList.remove('mostrar');
+            }, 4000);
+        }
+
+        // 1. Passo: Buscar aceitando os serviços de informação e também de bateria
+        btnBuscar.addEventListener('click', async () => {
+            try {
+                dadosRelogio.classList.add('oculto'); 
+                
+                dispositivoEscolhido = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['device_information', 'battery_service'] 
+                });
+
+                if (dispositivoEscolhido) {
+                    nomeDispositivo.textContent = dispositivoEscolhido.name || "Smartwatch (Sem nome)";
+                    resultadoBusca.classList.remove('oculto');
+                }
+            } catch (error) {
+                console.log("Busca cancelada: ", error);
+                exibirBalao(balaoErro);
+            }
+        });
+
+        // 2. Passo: Conectar e tentar estratégias diferentes de leitura
+        btnConectar.addEventListener('click', async () => {
+            if (!dispositivoEscolhido) return;
+
+            try {
+                textoDados.textContent = "Conectando ao hardware...";
+                dadosRelogio.classList.remove('oculto');
+
+                const servidor = await dispositivoEscolhido.gatt.connect();
+                
+                if (servidor.connected) {
+                    exibirBalao(balaoSucesso);
+                    textoDados.innerHTML = "✅ <strong>Conectado!</strong><br>Tentando ler nível de bateria...";
+
+                    try {
+                        // ESTRATÉGIA A: Tentar ler o serviço de bateria universal
+                        const servicoBateria = await servidor.getPrimaryService('battery_service');
+                        const caracteristicaBateria = await servicoBateria.getCharacteristic('battery_level');
+                        const valorBateria = await caracteristicaBateria.readValue();
+                        const porcentagem = valorBateria.getUint8(0);
+                        
+                        textoDados.innerHTML = `🔋 <strong>Sucesso Absoluto!</strong><br>Bateria do Relógio: <span style="color:#16a34a; font-weight:bold;">${porcentagem}%</span>`;
+                    
+                    } catch (erroBateria) {
+                        // ESTRATÉGIA B: Se a bateria também for bloqueada, vamos listar os serviços que ele possui abertos
+                        console.log("Bateria bloqueada, listando canais abertos...", erroBateria);
+                        textoDados.innerHTML = "⚠️ Bateria protegida. Mapeando canais de comunicação abertos do Haiz...";
+                        
+                        // Busca todos os serviços primários que o relógio expõe publicamente
+                        const servicosAbertos = await servidor.getPrimaryServices();
+                        
+                        if(servicosAbertos.length > 0) {
+                            let listaUUIDs = "";
+                            servicosAbertos.forEach(s => {
+                                // Simplifica o ID do serviço para ficar legível
+                                let nomeCurto = s.uuid.includes('000018') ? "Serviço Padrão" : "Canal Customizado";
+                                listaUUIDs += `• ${nomeCurto} (${s.uuid.substring(4, 8).toUpperCase()})<br>`;
+                            });
+                            
+                            textoDados.innerHTML = `✅ <strong>Conexão Real Comprovada!</strong><br>O relógio respondeu e liberou os seguintes canais:<br><small>${listaUUIDs}</small>`;
+                        } else {
+                            textoDados.innerHTML = `✅ <strong>Conectado com sucesso!</strong><br>Porém o relógio opera em modo 100% invisível/fechado para proteção de dados.`;
+                        }
+                    }
+                } else {
+                    exibirBalao(balaoErro);
+                    textoDados.textContent = "Falha ao parear.";
+                }
+            } catch (error) {
+                console.error("Erro geral: ", error);
+                exibirBalao(balaoErro);
+                textoDados.innerHTML = `❌ Erro de barreira no hardware.<br><small>${error.message}</small>`;
+            }
+        });
+    </script>
+</body>
+</html>
